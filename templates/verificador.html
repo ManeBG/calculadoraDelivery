@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Verificar pedido{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* Línea de producto agregada dinámicamente */
+  .product-row { animation: slideIn 0.25s ease; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ─── Encabezado ───────────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-icon bg-primary text-white rounded-3 p-2">
+        <i class="bi bi-search fs-4"></i>
+      </div>
+      <div>
+        <h2 class="fw-bold mb-0">Verificar pedido</h2>
+        <p class="text-muted mb-0 small">Captura los datos del pedido y obtén el cálculo real al instante.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Formulario ───────────────────────────────────────────── -->
+  <div class="col-12">
+    <form id="orderForm" method="POST" action="{{ url_for('verificar') }}" novalidate>
+
+      <div class="row g-4">
+
+        <!-- Sección: Datos del cliente -->
+        <div class="col-12 col-lg-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+              <h6 class="card-title fw-semibold mb-0">
+                <i class="bi bi-person-fill me-2 text-primary"></i>Datos del cliente
+              </h6>
+            </div>
+            <div class="card-body px-4 pb-4 pt-3">
+
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label fw-medium" for="cliente">
+                    Nombre <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" id="cliente" name="cliente" class="form-control"
+                           placeholder="Nombre del cliente"
+                           value="{{ form_values.get('cliente', '') if form_values else '' }}"
+                           required autocomplete="name"/>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium" for="telefono">Teléfono</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-whatsapp text-success"></i></span>
+                    <input type="tel" id="telefono" name="telefono" class="form-control"
+                           placeholder="10 dígitos"
+                           value="{{ form_values.get('telefono', '') if form_values else '' }}"
+                           autocomplete="tel"/>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium" for="tipo_entrega">
+                    Tipo de entrega <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-truck"></i></span>
+                    <select id="tipo_entrega" name="tipo_entrega" class="form-select" required>
+                      <option value="">Selecciona tipo...</option>
+                      {% for key, opt in delivery_options.items() %}
+                        <option value="{{ key }}"
+                          {% if form_values and form_values.get('tipo_entrega') == key %}selected{% endif %}>
+                          {{ opt.label }} — ${{ opt.cost | int }} MXN
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="form-text" id="envio_hint"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección: Montos reportados -->
+        <div class="col-12 col-lg-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+              <h6 class="card-title fw-semibold mb-0">
+                <i class="bi bi-receipt me-2 text-warning"></i>Montos reportados por el cliente
+              </h6>
+            </div>
+            <div class="card-body px-4 pb-4 pt-3">
+
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label fw-medium" for="subtotal_reportado">
+                    Subtotal reportado
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="subtotal_reportado" name="subtotal_reportado"
+                           class="form-control" step="0.01" min="0" placeholder="0.00"
+                           value="{{ form_values.get('subtotal_reportado', '') if form_values else '' }}"/>
+                    <span class="input-group-text">MXN</span>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium" for="envio_reportado">
+                    Envío reportado
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="envio_reportado" name="envio_reportado"
+                           class="form-control" step="0.01" min="0" placeholder="0.00"
+                           value="{{ form_values.get('envio_reportado', '') if form_values else '' }}"/>
+                    <span class="input-group-text">MXN</span>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium" for="total_reportado">
+                    Total reportado <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="total_reportado" name="total_reportado"
+                           class="form-control form-control-lg fw-bold" step="0.01" min="0"
+                           placeholder="0.00" required
+                           value="{{ form_values.get('total_reportado', '') if form_values else '' }}"/>
+                    <span class="input-group-text fw-bold">MXN</span>
+                  </div>
+                  <div class="form-text text-muted">
+                    El total que aparece en la plataforma / captura del cliente.
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección: Productos del pedido -->
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4 d-flex align-items-center justify-content-between">
+              <h6 class="card-title fw-semibold mb-0">
+                <i class="bi bi-cart3 me-2 text-success"></i>Productos del pedido
+              </h6>
+              <button type="button" id="btnAddProduct"
+                      class="btn btn-success btn-sm" onclick="addProductRow()">
+                <i class="bi bi-plus-lg me-1"></i>Agregar producto
+              </button>
+            </div>
+            <div class="card-body px-4 pb-2 pt-3">
+
+              <!-- Tabla de productos -->
+              <div class="table-responsive">
+                <table class="table table-borderless align-middle" id="productsTable">
+                  <thead class="table-header-soft">
+                    <tr>
+                      <th style="min-width:220px">Producto</th>
+                      <th style="min-width:160px">Variante</th>
+                      <th style="width:90px">Cant.</th>
+                      <th style="width:100px">P. Web</th>
+                      <th style="width:100px">P. Tienda</th>
+                      <th style="width:100px">Subtotal</th>
+                      <th style="width:60px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="productRows">
+                    <!-- Fila vacía inicial -->
+                  </tbody>
+                  <tfoot>
+                    <tr class="table-totals-row">
+                      <td colspan="5" class="text-end fw-semibold pe-3">
+                        Subtotal estimado (precio web):
+                      </td>
+                      <td>
+                        <span id="liveSubtotalWeb" class="fw-bold text-primary">$0.00</span>
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- Preview en vivo -->
+              <div id="livePreview" class="alert alert-info border-0 mt-3 d-none">
+                <div class="row g-2 text-center">
+                  <div class="col">
+                    <div class="small text-muted">Subtotal web</div>
+                    <div class="fw-bold" id="previewSubtotal">$0.00</div>
+                  </div>
+                  <div class="col">
+                    <div class="small text-muted">Envío estimado</div>
+                    <div class="fw-bold" id="previewEnvio">$0.00</div>
+                  </div>
+                  <div class="col">
+                    <div class="small text-muted">Total estimado</div>
+                    <div class="fw-bold fs-5" id="previewTotal">$0.00</div>
+                  </div>
+                  <div class="col">
+                    <div class="small text-muted">Diferencia</div>
+                    <div class="fw-bold" id="previewDiff">—</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 d-flex gap-2 justify-content-end">
+              <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Cancelar
+              </a>
+              <button type="submit" class="btn btn-primary btn-lg px-5" id="btnSubmit">
+                <i class="bi bi-calculator me-2"></i>Calcular y verificar
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# Pasar catálogo al JS de forma segura #}
+<script>
+  const CATALOG = {{ products_json | safe }};
+  const DELIVERY_OPTIONS = {{ delivery_options | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/verificador.js') }}"></script>
+{% endblock %}

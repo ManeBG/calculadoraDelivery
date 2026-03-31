@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4 justify-content-center">
+
+  <!-- Hero / título -->
+  <div class="col-12">
+    <div class="hero-card card shadow-sm border-0 text-center py-5">
+      <div class="hero-icon mb-3">
+        <i class="bi bi-bag-check-fill"></i>
+      </div>
+      <h1 class="fw-bold mb-1">
+        Calculadora de Deliveries
+      </h1>
+      <p class="text-muted mb-4">
+        Verifica, audita y controla cada pedido de <strong>{{ store_name }}</strong> al instante.
+      </p>
+      <div class="d-flex flex-wrap justify-content-center gap-3">
+        <a href="{{ url_for('verificar') }}" class="btn btn-primary btn-lg px-4">
+          <i class="bi bi-search me-2"></i>Verificar pedido
+        </a>
+        <a href="{{ url_for('historial') }}" class="btn btn-outline-secondary btn-lg px-4">
+          <i class="bi bi-clock-history me-2"></i>Ver historial
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Resumen del día ─────────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="section-header d-flex align-items-center justify-content-between mb-3">
+      <h5 class="mb-0 fw-semibold">
+        <i class="bi bi-calendar-check me-2 text-primary"></i>
+        Resumen de hoy — {{ hoy }}
+      </h5>
+      <a href="{{ url_for('resumen') }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-bar-chart-line me-1"></i>Ver completo
+      </a>
+    </div>
+  </div>
+
+  <!-- Pedidos totales -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card card border-0 shadow-sm h-100 text-center">
+      <div class="card-body py-4">
+        <div class="stat-icon text-primary mb-2"><i class="bi bi-bag-fill"></i></div>
+        <div class="stat-value">{{ resumen.total_pedidos }}</div>
+        <div class="stat-label">Pedidos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OK -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card card border-0 shadow-sm h-100 text-center estado-ok">
+      <div class="card-body py-4">
+        <div class="stat-icon text-success mb-2"><i class="bi bi-check-circle-fill"></i></div>
+        <div class="stat-value text-success">{{ resumen.pedidos_ok }}</div>
+        <div class="stat-label">OK</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revisar -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card card border-0 shadow-sm h-100 text-center estado-revisar">
+      <div class="card-body py-4">
+        <div class="stat-icon text-warning mb-2"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div class="stat-value text-warning">{{ resumen.pedidos_revisar }}</div>
+        <div class="stat-label">Revisar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manipulado -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card card border-0 shadow-sm h-100 text-center estado-manipulado">
+      <div class="card-body py-4">
+        <div class="stat-icon text-danger mb-2"><i class="bi bi-shield-exclamation"></i></div>
+        <div class="stat-value text-danger">{{ resumen.pedidos_manipulados }}</div>
+        <div class="stat-label">Manipulado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tienda -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card card border-0 shadow-sm h-100 text-center">
+      <div class="card-body py-4">
+        <div class="stat-icon text-info mb-2"><i class="bi bi-shop"></i></div>
+        <div class="stat-value fs-6">{{ resumen.total_tienda | money }}</div>
+        <div class="stat-label">Para tienda</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plataforma -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card card border-0 shadow-sm h-100 text-center">
+      <div class="card-body py-4">
+        <div class="stat-icon text-purple mb-2"><i class="bi bi-percent"></i></div>
+        <div class="stat-value fs-6">{{ resumen.total_plataforma | money }}</div>
+        <div class="stat-label">Plataforma</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA rápida -->
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card border-0 shadow-sm bg-primary-soft">
+      <div class="card-body d-flex align-items-center gap-4 p-4">
+        <div class="cta-icon text-primary flex-shrink-0">
+          <i class="bi bi-lightning-charge-fill"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-1">¿Llegó un nuevo pedido?</h6>
+          <p class="text-muted mb-0 small">
+            Captura los datos del pedido y calcula el total real en segundos.
+          </p>
+        </div>
+        <a href="{{ url_for('verificar') }}" class="btn btn-primary ms-auto flex-shrink-0">
+          <i class="bi bi-search"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

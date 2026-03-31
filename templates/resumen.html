@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Resumen del día{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ─── Encabezado ───────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="page-icon bg-info text-white rounded-3 p-2">
+          <i class="bi bi-bar-chart-line fs-4"></i>
+        </div>
+        <div>
+          <h2 class="fw-bold mb-0">Resumen del día</h2>
+          <p class="text-muted mb-0 small">Acumulados para <strong>{{ fecha }}</strong></p>
+        </div>
+      </div>
+
+      <!-- Selector de fecha -->
+      <form method="GET" action="{{ url_for('resumen') }}" class="d-flex gap-2 align-items-center">
+        <label class="fw-medium small mb-0" for="fecha">Fecha:</label>
+        <input type="date" id="fecha" name="fecha" class="form-control form-control-sm"
+               value="{{ fecha }}" onchange="this.form.submit()"/>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Cards de totales económicos ──────────────────────── -->
+
+  <!-- Tienda -->
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm bg-success-soft h-100">
+      <div class="card-body text-center py-5">
+        <div class="resumen-icon text-success mb-3">
+          <i class="bi bi-shop-window"></i>
+        </div>
+        <div class="resumen-amount text-success">
+          {{ datos.total_tienda | money }}
+        </div>
+        <div class="resumen-label">Para la tienda</div>
+        <div class="resumen-sublabel text-muted mt-1">
+          Suma de precio_tienda de todos los pedidos
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repartidores -->
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm bg-info-soft h-100">
+      <div class="card-body text-center py-5">
+        <div class="resumen-icon text-info mb-3">
+          <i class="bi bi-bicycle"></i>
+        </div>
+        <div class="resumen-amount text-info">
+          {{ datos.total_repartidores | money }}
+        </div>
+        <div class="resumen-label">Para repartidores</div>
+        <div class="resumen-sublabel text-muted mt-1">
+          Suma del costo de envío de todos los pedidos
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plataforma -->
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm bg-purple-soft h-100">
+      <div class="card-body text-center py-5">
+        <div class="resumen-icon text-purple mb-3">
+          <i class="bi bi-percent"></i>
+        </div>
+        <div class="resumen-amount text-purple">
+          {{ datos.total_plataforma | money }}
+        </div>
+        <div class="resumen-label">Ganancia plataforma</div>
+        <div class="resumen-sublabel text-muted mt-1">
+          Margen entre precio_web y precio_tienda
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Línea divisoria ───────────────────────────────────── -->
+  <div class="col-12">
+    <hr class="my-0 border-secondary opacity-25"/>
+  </div>
+
+  <!-- ─── Cards de estado de pedidos ───────────────────────── -->
+
+  <!-- Total pedidos -->
+  <div class="col-6 col-md-3">
+    <div class="stat-card card border-0 shadow-sm text-center h-100">
+      <div class="card-body py-4">
+        <div class="stat-icon text-primary mb-2">
+          <i class="bi bi-bag-fill"></i>
+        </div>
+        <div class="stat-value">{{ datos.total_pedidos }}</div>
+        <div class="stat-label">Total pedidos verificados</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OK -->
+  <div class="col-6 col-md-3">
+    <div class="stat-card card border-0 shadow-sm text-center h-100 estado-ok">
+      <div class="card-body py-4">
+        <div class="stat-icon text-success mb-2">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="stat-value text-success">{{ datos.pedidos_ok }}</div>
+        <div class="stat-label">Pedidos OK</div>
+        {% if datos.total_pedidos > 0 %}
+        <div class="small text-muted mt-1">
+          {{ ((datos.pedidos_ok / datos.total_pedidos) * 100) | int }}%
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Revisar -->
+  <div class="col-6 col-md-3">
+    <div class="stat-card card border-0 shadow-sm text-center h-100 estado-revisar">
+      <div class="card-body py-4">
+        <div class="stat-icon text-warning mb-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div class="stat-value text-warning">{{ datos.pedidos_revisar }}</div>
+        <div class="stat-label">Por revisar</div>
+        {% if datos.total_pedidos > 0 %}
+        <div class="small text-muted mt-1">
+          {{ ((datos.pedidos_revisar / datos.total_pedidos) * 100) | int }}%
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Manipulado -->
+  <div class="col-6 col-md-3">
+    <div class="stat-card card border-0 shadow-sm text-center h-100 estado-manipulado">
+      <div class="card-body py-4">
+        <div class="stat-icon text-danger mb-2">
+          <i class="bi bi-shield-exclamation"></i>
+        </div>
+        <div class="stat-value text-danger">{{ datos.pedidos_manipulados }}</div>
+        <div class="stat-label">Manipulados / incompletos</div>
+        {% if datos.total_pedidos > 0 %}
+        <div class="small text-muted mt-1">
+          {{ ((datos.pedidos_manipulados / datos.total_pedidos) * 100) | int }}%
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Estado vacío ──────────────────────────────────────── -->
+  {% if datos.total_pedidos == 0 %}
+  <div class="col-12">
+    <div class="empty-state text-center py-4">
+      <div class="empty-icon text-muted mb-3"><i class="bi bi-bar-chart fs-1"></i></div>
+      <h6 class="text-muted">Sin pedidos para el {{ fecha }}.</h6>
+      <a href="{{ url_for('verificar') }}" class="btn btn-outline-primary btn-sm mt-2">
+        <i class="bi bi-search me-1"></i>Verificar un pedido
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ─── Acciones ──────────────────────────────────────────── -->
+  <div class="col-12 d-flex gap-2">
+    <a href="{{ url_for('historial') + '?fecha_inicio=' + fecha + '&fecha_fin=' + fecha }}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-list-ul me-1"></i>Ver pedidos de este día
+    </a>
+    <a href="{{ url_for('verificar') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-search me-1"></i>Verificar pedido
+    </a>
+  </div>
+
+</div>
+{% endblock %}

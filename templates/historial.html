@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Historial de pedidos{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ─── Encabezado ───────────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-icon bg-secondary text-white rounded-3 p-2">
+        <i class="bi bi-clock-history fs-4"></i>
+      </div>
+      <div>
+        <h2 class="fw-bold mb-0">Historial de pedidos</h2>
+        <p class="text-muted mb-0 small">Consulta verificaciones anteriores. Filtra por fecha.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Filtro por fecha ──────────────────────────────────── -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body px-4 py-3">
+        <form method="GET" action="{{ url_for('historial') }}" class="row g-2 align-items-end">
+          <div class="col-auto">
+            <label class="form-label fw-medium small mb-1" for="fecha_inicio">Desde</label>
+            <input type="date" id="fecha_inicio" name="fecha_inicio"
+                   class="form-control form-control-sm"
+                   value="{{ fecha_inicio }}"/>
+          </div>
+          <div class="col-auto">
+            <label class="form-label fw-medium small mb-1" for="fecha_fin">Hasta</label>
+            <input type="date" id="fecha_fin" name="fecha_fin"
+                   class="form-control form-control-sm"
+                   value="{{ fecha_fin }}"/>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-funnel me-1"></i>Filtrar
+            </button>
+            <a href="{{ url_for('historial') }}" class="btn btn-outline-secondary btn-sm ms-1">
+              <i class="bi bi-x-lg"></i>
+            </a>
+          </div>
+          <div class="col text-end text-muted small align-self-center">
+            {{ registros | length }} registro{{ 's' if registros | length != 1 }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Tabla de historial ───────────────────────────────── -->
+  <div class="col-12">
+    {% if registros %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" id="historialTable">
+            <thead class="table-header-soft">
+              <tr>
+                <th class="ps-4">#</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Tel.</th>
+                <th>Entrega</th>
+                <th class="text-end">Reportado</th>
+                <th class="text-end">Real</th>
+                <th class="text-end">Diferencia</th>
+                <th class="text-center">Estado</th>
+                <th class="text-center pe-4">Ver</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reg in registros %}
+              {% set color = 'success' if reg.estado == 'OK' else ('warning' if reg.estado == 'Revisar' else 'danger') %}
+              {% set icon  = 'check-circle-fill' if reg.estado == 'OK' else ('exclamation-triangle-fill' if reg.estado == 'Revisar' else 'shield-exclamation') %}
+              <tr>
+                <td class="ps-4 text-muted small">{{ reg.id }}</td>
+                <td class="small">{{ reg.fecha[:16] }}</td>
+                <td class="fw-medium">{{ reg.cliente }}</td>
+                <td class="small text-muted">{{ reg.telefono or '—' }}</td>
+                <td>
+                  <span class="badge bg-light text-dark border small">{{ reg.tipo_entrega }}</span>
+                </td>
+                <td class="text-end">{{ reg.total_reportado | money }}</td>
+                <td class="text-end fw-semibold">{{ reg.total_real | money }}</td>
+                <td class="text-end fw-semibold text-{{ color }}">
+                  {{ reg.diferencia | money }}
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-{{ color }}-subtle text-{{ color }} border border-{{ color }}-subtle">
+                    <i class="bi bi-{{ icon }} me-1"></i>{{ reg.estado }}
+                  </span>
+                </td>
+                <td class="text-center pe-4">
+                  <a href="{{ url_for('ver_verificacion', record_id=reg.id) }}"
+                     class="btn btn-outline-primary btn-sm"
+                     title="Ver detalle">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- Estado vacío -->
+    <div class="empty-state text-center py-5">
+      <div class="empty-icon text-muted mb-3"><i class="bi bi-inbox fs-1"></i></div>
+      <h5 class="text-muted fw-semibold">Sin registros</h5>
+      <p class="text-muted small">
+        {% if fecha_inicio or fecha_fin %}
+          No hay verificaciones en el rango de fechas seleccionado.
+        {% else %}
+          Aún no has verificado ningún pedido.
+        {% endif %}
+      </p>
+      <a href="{{ url_for('verificar') }}" class="btn btn-primary mt-2">
+        <i class="bi bi-search me-1"></i>Verificar primer pedido
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
