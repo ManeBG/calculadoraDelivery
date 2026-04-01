@@ -55,11 +55,20 @@
           </li>
 
           <li class="nav-item">
-            <a class="nav-link nav-pill {% if request.endpoint == 'verificar' %}active{% endif %}"
+            <a class="nav-link nav-pill {% if request.endpoint in ['verificar','analizar'] %}active{% endif %}"
                href="{{ url_for('verificar') }}">
-              <i class="bi bi-search me-1"></i> Verificar pedido
+              <i class="bi bi-chat-text me-1"></i> Pegar pedido
             </a>
           </li>
+
+          {% if request.endpoint == 'revisar' %}
+          <li class="nav-item">
+            <a class="nav-link nav-pill active"
+               href="{{ url_for('revisar') }}">
+              <i class="bi bi-pencil-square me-1"></i> Revisar
+            </a>
+          </li>
+          {% endif %}
 
           <li class="nav-item">
             <a class="nav-link nav-pill {% if request.endpoint == 'historial' %}active{% endif %}"

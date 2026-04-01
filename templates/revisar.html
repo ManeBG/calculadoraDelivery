@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}Revisar pedido detectado{% endblock %}
+
+{% block head_extra %}
+<style>
+  .confidence-bar { height: 4px; border-radius: 2px; }
+  .item-row { transition: background 0.15s ease; }
+  .item-row:hover { background: rgba(255,255,255,0.03); }
+  .badge-conf-high { background: rgba(34,197,94,0.15); color: #86efac; }
+  .badge-conf-med  { background: rgba(245,158,11,0.15); color: #fde68a; }
+  .badge-conf-low  { background: rgba(239,68,68,0.15); color: #fca5a5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ─── Encabezado ─────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <div class="page-icon bg-warning text-dark rounded-3 p-2">
+        <i class="bi bi-pencil-square fs-4"></i>
+      </div>
+      <div class="flex-grow-1">
+        <h2 class="fw-bold mb-0">Revisar pedido detectado</h2>
+        <p class="text-muted mb-0 small">
+          Verifica y corrige lo que detectó el parser. Luego confirma para calcular.
+        </p>
+      </div>
+      <a href="{{ url_for('verificar') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Pegar otro pedido
+      </a>
+    </div>
+  </div>
+
+  <!-- ─── Texto original ─────────────────────────────────── -->
+  <div class="col-12">
+    <details class="card border-0 shadow-sm">
+      <summary class="card-header bg-transparent border-0 px-4 py-3 cursor-pointer d-flex align-items-center gap-2">
+        <i class="bi bi-chat-quote text-muted"></i>
+        <span class="fw-medium">Texto original pegado</span>
+        <span class="text-muted small ms-auto">(click para ver/ocultar)</span>
+      </summary>
+      <div class="card-body px-4 pb-4 pt-2">
+        <pre class="raw-text-preview mb-0">{{ analysis.raw_text }}</pre>
+      </div>
+    </details>
+  </div>
+
+  <!-- ─── Advertencias ───────────────────────────────────── -->
+  {% if analysis.warnings %}
+  <div class="col-12">
+    <div class="card border-0 shadow-sm border-start border-warning border-3">
+      <div class="card-body px-4 py-3">
+        <div class="fw-semibold mb-2 text-warning">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>Advertencias del parser
+        </div>
+        <ul class="mb-0 small ps-3 text-muted">
+          {% for w in analysis.warnings %}
+          <li>{{ w }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ─── Formulario de revisión ─────────────────────────── -->
+  <div class="col-12">
+    <form method="POST" action="{{ url_for('confirmar') }}" id="confirmForm">
+
+      <div class="row g-4">
+
+        <!-- Sección: Datos del pedido detectados -->
+        <div class="col-12 col-lg-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+              <h6 class="fw-semibold mb-0">
+                <i class="bi bi-person-fill me-2 text-primary"></i>
+                Datos detectados
+                <span class="badge bg-secondary ms-1 small fw-normal">editable</span>
+              </h6>
+            </div>
+            <div class="card-body px-4 pb-4 pt-3">
+              <div class="row g-3">
+
+                <div class="col-12">
+                  <label class="form-label fw-medium small" for="cliente">Nombre del cliente</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" id="cliente" name="cliente" class="form-control"
+                           value="{{ analysis.client_name or '' }}"
+                           placeholder="Nombre (opcional)"/>
+                  </div>
+                  {% if not analysis.client_name %}
+                  <div class="form-text text-muted">No detectado en el texto.</div>
+                  {% endif %}
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium small" for="telefono">Teléfono</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-whatsapp text-success"></i></span>
+                    <input type="tel" id="telefono" name="telefono" class="form-control"
+                           value="{{ analysis.phone or '' }}"
+                           placeholder="10 dígitos (opcional)"/>
+                  </div>
+                  {% if not analysis.phone %}
+                  <div class="form-text text-muted">No detectado en el texto.</div>
+                  {% endif %}
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium small" for="tipo_entrega">
+                    Tipo de entrega <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-truck"></i></span>
+                    <select id="tipo_entrega" name="tipo_entrega" class="form-select" required>
+                      <option value="">Selecciona tipo...</option>
+                      {% for key, opt in delivery_options.items() %}
+                        <option value="{{ key }}"
+                          {{ 'selected' if analysis.delivery_type == key }}>
+                          {{ opt.label }} — ${{ opt.cost | int }} MXN
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% if not analysis.delivery_type %}
+                  <div class="form-text text-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>No se detectó el tipo de entrega.
+                  </div>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección: Montos reportados -->
+        <div class="col-12 col-lg-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+              <h6 class="fw-semibold mb-0">
+                <i class="bi bi-receipt me-2 text-warning"></i>
+                Montos reportados
+                <span class="badge bg-secondary ms-1 small fw-normal">editable</span>
+              </h6>
+            </div>
+            <div class="card-body px-4 pb-4 pt-3">
+              <div class="row g-3">
+
+                <div class="col-12">
+                  <label class="form-label fw-medium small" for="subtotal_reportado">Subtotal reportado</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="subtotal_reportado" name="subtotal_reportado"
+                           class="form-control" step="0.01" min="0"
+                           value="{{ analysis.reported_subtotal or '' }}"
+                           placeholder="0.00"/>
+                    <span class="input-group-text">MXN</span>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium small" for="envio_reportado">Envío reportado</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="envio_reportado" name="envio_reportado"
+                           class="form-control" step="0.01" min="0"
+                           value="{{ analysis.reported_shipping or '' }}"
+                           placeholder="0.00"/>
+                    <span class="input-group-text">MXN</span>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-medium small" for="total_reportado">
+                    Total reportado <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="total_reportado" name="total_reportado"
+                           class="form-control form-control-lg fw-bold" step="0.01" min="0"
+                           value="{{ analysis.reported_total or '' }}"
+                           placeholder="0.00" required/>
+                    <span class="input-group-text fw-bold">MXN</span>
+                  </div>
+                  {% if not analysis.reported_total %}
+                  <div class="form-text text-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    No se detectó el total en el texto. Ingrésalo manualmente.
+                  </div>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Productos detectados ────────────────────── -->
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4 d-flex align-items-center justify-content-between">
+              <div>
+                <h6 class="fw-semibold mb-0">
+                  <i class="bi bi-cart3 me-2 text-success"></i>
+                  Productos detectados
+                </h6>
+                <p class="text-muted small mb-0 mt-1">
+                  Verifica cada línea. Cambia producto, variante o cantidad si es necesario.
+                </p>
+              </div>
+              <button type="button" class="btn btn-success btn-sm" onclick="addManualRow()">
+                <i class="bi bi-plus-lg me-1"></i>Agregar manual
+              </button>
+            </div>
+            <div class="card-body px-4 pb-2 pt-3">
+
+              <div class="table-responsive">
+                <table class="table table-borderless align-middle" id="itemsTable">
+                  <thead class="table-header-soft">
+                    <tr>
+                      <th style="min-width:180px">Producto</th>
+                      <th style="min-width:150px">Variante</th>
+                      <th style="width:85px">Cant.</th>
+                      <th style="width:95px">P. Web</th>
+                      <th style="width:95px">P. Tienda</th>
+                      <th style="width:95px">Subtotal</th>
+                      <th style="width:80px">Conf.</th>
+                      <th style="width:55px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemRows">
+
+                    {% for item in analysis.detected_items %}
+                    {% set row_id = "row-auto-" + loop.index|string %}
+                    <tr class="item-row" id="{{ row_id }}">
+                      <td>
+                        <select name="product_id[]"
+                                class="form-select form-select-sm product-select"
+                                data-row="{{ row_id }}"
+                                onchange="onProductChange(this)"
+                                required>
+                          <option value="">Sin producto...</option>
+                          {% for p in products %}
+                            <option value="{{ p.id }}"
+                              {{ 'selected' if p.id == item.product_id }}>
+                              {{ p.name }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                        <!-- Hidden para product_name -->
+                        <input type="hidden" name="product_name[]" value="{{ item.product_name }}"/>
+                      </td>
+                      <td>
+                        <select name="variant_id[]"
+                                class="form-select form-select-sm variant-select"
+                                data-row="{{ row_id }}"
+                                id="variant-{{ row_id }}"
+                                onchange="updateRowDisplay('{{ row_id }}')">
+                          <!-- Se llena por JS al cargar -->
+                          <option value="{{ item.variant_id or '' }}">
+                            {{ item.variant_label or '—' }}
+                          </option>
+                        </select>
+                        <input type="hidden" name="variant_label[]" value="{{ item.variant_label }}"/>
+                      </td>
+                      <td>
+                        <input type="number" name="quantity[]"
+                               class="form-control form-control-sm quantity-input"
+                               data-row="{{ row_id }}"
+                               value="{{ item.quantity | int }}"
+                               min="1" step="1" style="width:70px"
+                               oninput="updateRowDisplay('{{ row_id }}')"/>
+                      </td>
+                      <td>
+                        <span class="price-web text-primary fw-medium"
+                              id="pw-{{ row_id }}">{{ item.precio_web | money }}</span>
+                      </td>
+                      <td>
+                        <span class="price-tienda text-muted small"
+                              id="pt-{{ row_id }}">{{ item.precio_tienda | money }}</span>
+                      </td>
+                      <td>
+                        <span class="subtotal-web fw-semibold"
+                              id="sub-{{ row_id }}">{{ item.subtotal_web | money }}</span>
+                      </td>
+                      <td>
+                        {% set conf_pct = (item.confidence * 100) | int %}
+                        {% if conf_pct >= 80 %}
+                          <span class="badge badge-conf-high">{{ conf_pct }}%</span>
+                        {% elif conf_pct >= 50 %}
+                          <span class="badge badge-conf-med">{{ conf_pct }}%</span>
+                        {% else %}
+                          <span class="badge badge-conf-low">{{ conf_pct }}%</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-remove-row"
+                                onclick="removeRow('{{ row_id }}')">
+                          <i class="bi bi-trash3"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    {% if item.warning %}
+                    <tr class="table-warning-hint">
+                      <td colspan="8" class="pt-0 pb-2 px-3">
+                        <small class="text-warning">
+                          <i class="bi bi-exclamation-triangle me-1"></i>{{ item.warning }}
+                        </small>
+                      </td>
+                    </tr>
+                    {% endif %}
+                    {% else %}
+                    <tr>
+                      <td colspan="8" class="text-center text-muted py-4">
+                        No se detectaron productos. Agrega líneas manualmente.
+                      </td>
+                    </tr>
+                    {% endfor %}
+
+                  </tbody>
+                  <tfoot>
+                    <tr class="table-totals-row">
+                      <td colspan="5" class="text-end fw-semibold pe-3">Subtotal estimado (precio web):</td>
+                      <td>
+                        <span id="liveSubtotal" class="fw-bold text-primary">$0.00</span>
+                      </td>
+                      <td colspan="2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── No reconocidos ─────────────────────────── -->
+        {% if analysis.unrecognized %}
+        <div class="col-12">
+          <div class="card border-0 shadow-sm border-start border-danger border-3">
+            <div class="card-body px-4 py-3">
+              <h6 class="fw-semibold text-danger mb-2">
+                <i class="bi bi-question-circle me-2"></i>
+                Fragmentos no reconocidos
+              </h6>
+              <p class="text-muted small mb-2">
+                El parser no pudo mapear estos fragmentos a ningún producto del catálogo.
+                Agrega los productos correspondientes manualmente usando el botón de arriba.
+              </p>
+              <div class="d-flex flex-wrap gap-2">
+                {% for frag in analysis.unrecognized %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                  "{{ frag }}"
+                </span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- ─── Botones de acción ───────────────────────── -->
+        <div class="col-12">
+          <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            <a href="{{ url_for('verificar') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left me-1"></i>Pegar otro pedido
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg px-5" id="confirmBtn">
+              <i class="bi bi-calculator me-2"></i>Calcular y confirmar auditoría
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /row -->
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const CATALOG = {{ products_json | safe }};
+  const DELIVERY_OPTIONS = {{ delivery_options | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/revisar.js') }}"></script>
+
+<script>
+  // Al cargar la página, poblar todos los selects de variante
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".product-select").forEach(sel => {
+      if (sel.value) populateVariants(sel, true /* keep current */);
+    });
+    recalcAllRows();
+  });
+
+  document.getElementById("confirmForm").addEventListener("submit", () => {
+    const btn = document.getElementById("confirmBtn");
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calculando...';
+    btn.disabled = true;
+  });
+</script>
+{% endblock %}

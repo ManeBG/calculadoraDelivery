@@ -380,3 +380,102 @@ body {
   .resumen-amount { font-size: 1.8rem; }
   .hero-icon { font-size: 2.5rem; }
 }
+
+/* ─── Textarea del pedido ──────────────────────────────────── */
+.textarea-pedido {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  resize: vertical;
+  min-height: 260px;
+  background: var(--clr-surface-2) !important;
+  border-color: rgba(79,142,247,0.2) !important;
+  color: #e2e8f0 !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.textarea-pedido:focus {
+  border-color: var(--clr-primary) !important;
+  box-shadow: 0 0 0 4px rgba(79,142,247,0.15) !important;
+}
+.textarea-pedido::placeholder {
+  color: #475569 !important;
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+/* ─── Tips list ─────────────────────────────────────────────── */
+.tips-list li {
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  border-bottom: 1px solid var(--clr-border);
+}
+.tips-list li:last-child { border-bottom: none; }
+
+/* ─── Raw text preview (detalles) ───────────────────────────── */
+.raw-text-preview {
+  background: var(--clr-surface-2);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  font-family: 'Consolas', monospace;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--clr-border);
+}
+
+/* ─── Details/summary estilo card ──────────────────────────── */
+details.card > summary {
+  list-style: none;
+  cursor: pointer;
+  border-bottom: 1px solid var(--clr-border);
+}
+details.card > summary::-webkit-details-marker { display: none; }
+details.card[open] > summary { border-bottom-color: rgba(255,255,255,0.12); }
+
+/* ─── Warning hint en tabla ─────────────────────────────────── */
+.table-warning-hint td {
+  background: rgba(245,158,11,0.04) !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+}
+
+/* ─── Confianza badges ──────────────────────────────────────── */
+.badge-conf-high {
+  background: rgba(34,197,94,0.15) !important;
+  color: #86efac !important;
+  font-size: 0.72rem;
+}
+.badge-conf-med {
+  background: rgba(245,158,11,0.15) !important;
+  color: #fde68a !important;
+  font-size: 0.72rem;
+}
+.badge-conf-low {
+  background: rgba(239,68,68,0.15) !important;
+  color: #fca5a5 !important;
+  font-size: 0.72rem;
+}
+
+/* ─── Index hero (actualizado para nuevo flujo) ─────────────── */
+.hero-cta-bar {
+  background: linear-gradient(
+    135deg,
+    rgba(79,142,247,0.1) 0%,
+    rgba(167,139,250,0.08) 100%
+  );
+  border: 1px solid rgba(79,142,247,0.2) !important;
+  border-radius: var(--radius-lg) !important;
+}
+.hero-cta-icon {
+  font-size: 3rem;
+  background: linear-gradient(135deg, var(--clr-primary), #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(79,142,247,0.4));
+}
+

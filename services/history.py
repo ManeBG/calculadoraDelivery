@@ -1,19 +1,11 @@
 """
-services/history.py
--------------------
-Gestión del historial de pedidos verificados en SQLite.
-Usa sqlite3 estándar de Python, sin ORM.
+services/history.py  —  Historial de auditorías en SQLite
 """
 
-import sqlite3
-import json
-import os
+import sqlite3, json, os
 from datetime import date, datetime
 
-# Ruta a la base de datos
-_DB_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "database", "historial.db"
-)
+_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "database", "app.db")
 
 
 def get_db_path() -> str:
@@ -21,69 +13,58 @@ def get_db_path() -> str:
 
 
 def get_connection() -> sqlite3.Connection:
-    """Devuelve una conexión configurada con row_factory para dicts."""
     conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")   # mejor rendimiento concurrente
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
 def init_db():
-    """
-    Crea la tabla de historial si no existe.
-    Llamar una vez al iniciar la app.
-    """
+    """Crea las tablas si no existen."""
     os.makedirs(os.path.dirname(get_db_path()), exist_ok=True)
     with get_connection() as conn:
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS historial (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                fecha               TEXT NOT NULL,
-                cliente             TEXT NOT NULL,
-                telefono            TEXT DEFAULT '',
-                tipo_entrega        TEXT NOT NULL,
-                subtotal_reportado  REAL DEFAULT 0,
-                envio_reportado     REAL DEFAULT 0,
-                total_reportado     REAL NOT NULL,
-                subtotal_cliente    REAL NOT NULL,
-                subtotal_tienda     REAL NOT NULL,
-                envio_real          REAL NOT NULL,
-                total_real          REAL NOT NULL,
-                pago_tienda         REAL NOT NULL,
-                pago_repartidor     REAL NOT NULL,
-                ganancia_plataforma REAL NOT NULL,
-                diferencia          REAL NOT NULL,
-                estado              TEXT NOT NULL,
-                productos_json      TEXT NOT NULL
+            CREATE TABLE IF NOT EXISTS audits (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha                TEXT NOT NULL,
+                raw_text             TEXT DEFAULT '',
+                cliente              TEXT DEFAULT '',
+                telefono             TEXT DEFAULT '',
+                tipo_entrega         TEXT NOT NULL,
+                subtotal_reportado   REAL DEFAULT 0,
+                envio_reportado      REAL DEFAULT 0,
+                total_reportado      REAL NOT NULL,
+                subtotal_cliente     REAL NOT NULL,
+                subtotal_tienda      REAL NOT NULL,
+                envio_real           REAL NOT NULL,
+                total_real           REAL NOT NULL,
+                pago_tienda          REAL NOT NULL,
+                pago_repartidor      REAL NOT NULL,
+                ganancia_plataforma  REAL NOT NULL,
+                diferencia           REAL NOT NULL,
+                estado               TEXT NOT NULL,
+                items_json           TEXT NOT NULL,
+                warnings_json        TEXT DEFAULT '[]'
             )
         """)
         conn.commit()
 
 
-def guardar_verificacion(data: dict) -> int:
-    """
-    Guarda una verificación en el historial.
-    Devuelve el id del registro insertado.
-
-    data espera las claves del resultado de verificar_pedido() más:
-        cliente, telefono, tipo_entrega, subtotal_reportado,
-        envio_reportado, total_reportado, items_detalle
-    """
+def save_audit(data: dict) -> int:
+    """Guarda una auditoría. Devuelve el id del registro."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    productos_json = json.dumps(data.get("items_detalle", []), ensure_ascii=False)
-
     with get_connection() as conn:
-        cursor = conn.execute("""
-            INSERT INTO historial (
-                fecha, cliente, telefono, tipo_entrega,
+        cur = conn.execute("""
+            INSERT INTO audits (
+                fecha, raw_text, cliente, telefono, tipo_entrega,
                 subtotal_reportado, envio_reportado, total_reportado,
-                subtotal_cliente, subtotal_tienda,
-                envio_real, total_real,
+                subtotal_cliente, subtotal_tienda, envio_real, total_real,
                 pago_tienda, pago_repartidor, ganancia_plataforma,
-                diferencia, estado, productos_json
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                diferencia, estado, items_json, warnings_json
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             now,
+            data.get("raw_text", ""),
             data.get("cliente", ""),
             data.get("telefono", ""),
             data.get("tipo_entrega", ""),
@@ -99,82 +80,61 @@ def guardar_verificacion(data: dict) -> int:
             data["ganancia_plataforma"],
             data["diferencia"],
             data["estado"],
-            productos_json,
+            json.dumps(data.get("items_detalle", []), ensure_ascii=False),
+            json.dumps(data.get("warnings", []), ensure_ascii=False),
         ))
         conn.commit()
-        return cursor.lastrowid
+        return cur.lastrowid
 
 
-def obtener_historial(fecha_inicio: str = None, fecha_fin: str = None) -> list[dict]:
-    """
-    Devuelve el historial de verificaciones, opcionalmente filtrado por rango de fechas.
-    Las fechas deben estar en formato 'YYYY-MM-DD'.
-    """
-    query = "SELECT * FROM historial WHERE 1=1"
+def get_audits(fecha_inicio: str = None, fecha_fin: str = None) -> list[dict]:
+    query  = "SELECT * FROM audits WHERE 1=1"
     params = []
-
     if fecha_inicio:
-        query += " AND fecha >= ?"
-        params.append(f"{fecha_inicio} 00:00:00")
+        query += " AND fecha >= ?"; params.append(f"{fecha_inicio} 00:00:00")
     if fecha_fin:
-        query += " AND fecha <= ?"
-        params.append(f"{fecha_fin} 23:59:59")
-
+        query += " AND fecha <= ?"; params.append(f"{fecha_fin} 23:59:59")
     query += " ORDER BY fecha DESC"
-
     with get_connection() as conn:
         rows = conn.execute(query, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def obtener_verificacion(record_id: int) -> dict | None:
-    """Devuelve un registro del historial por su id."""
+def get_audit(record_id: int) -> dict | None:
     with get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM historial WHERE id = ?", (record_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM audits WHERE id=?", (record_id,)).fetchone()
     if row:
         d = dict(row)
-        d["productos_json"] = json.loads(d["productos_json"])
+        d["items_json"]    = json.loads(d["items_json"])
+        d["warnings_json"] = json.loads(d.get("warnings_json", "[]"))
         return d
     return None
 
 
-def resumen_del_dia(fecha: str = None) -> dict:
-    """
-    Devuelve los acumulados para una fecha dada (default: hoy).
-    fecha: 'YYYY-MM-DD'
-    """
+def get_daily_summary(fecha: str = None) -> dict:
     if fecha is None:
         fecha = date.today().strftime("%Y-%m-%d")
-
-    fecha_inicio = f"{fecha} 00:00:00"
-    fecha_fin    = f"{fecha} 23:59:59"
-
+    fi, ff = f"{fecha} 00:00:00", f"{fecha} 23:59:59"
     with get_connection() as conn:
-        rows = conn.execute("""
+        row = conn.execute("""
             SELECT
-                COUNT(*)                     AS total_pedidos,
-                SUM(pago_tienda)             AS total_tienda,
-                SUM(pago_repartidor)         AS total_repartidores,
-                SUM(ganancia_plataforma)     AS total_plataforma,
-                SUM(CASE WHEN estado='OK'                    THEN 1 ELSE 0 END) AS pedidos_ok,
-                SUM(CASE WHEN estado='Revisar'               THEN 1 ELSE 0 END) AS pedidos_revisar,
+                COUNT(*)                                              AS total_pedidos,
+                COALESCE(SUM(pago_tienda), 0)                        AS total_tienda,
+                COALESCE(SUM(pago_repartidor), 0)                    AS total_repartidores,
+                COALESCE(SUM(ganancia_plataforma), 0)                AS total_plataforma,
+                SUM(CASE WHEN estado='OK'                      THEN 1 ELSE 0 END) AS pedidos_ok,
+                SUM(CASE WHEN estado='Revisar'                 THEN 1 ELSE 0 END) AS pedidos_revisar,
                 SUM(CASE WHEN estado='Manipulado o incompleto' THEN 1 ELSE 0 END) AS pedidos_manipulados
-            FROM historial
-            WHERE fecha BETWEEN ? AND ?
-        """, (fecha_inicio, fecha_fin)).fetchone()
-
-    row = dict(rows) if rows else {}
-
-    # Valores seguros si no hay datos
+            FROM audits WHERE fecha BETWEEN ? AND ?
+        """, (fi, ff)).fetchone()
+    r = dict(row) if row else {}
     return {
         "fecha":               fecha,
-        "total_pedidos":       row.get("total_pedidos") or 0,
-        "total_tienda":        row.get("total_tienda") or 0.0,
-        "total_repartidores":  row.get("total_repartidores") or 0.0,
-        "total_plataforma":    row.get("total_plataforma") or 0.0,
-        "pedidos_ok":          row.get("pedidos_ok") or 0,
-        "pedidos_revisar":     row.get("pedidos_revisar") or 0,
-        "pedidos_manipulados": row.get("pedidos_manipulados") or 0,
+        "total_pedidos":       r.get("total_pedidos") or 0,
+        "total_tienda":        r.get("total_tienda") or 0.0,
+        "total_repartidores":  r.get("total_repartidores") or 0.0,
+        "total_plataforma":    r.get("total_plataforma") or 0.0,
+        "pedidos_ok":          r.get("pedidos_ok") or 0,
+        "pedidos_revisar":     r.get("pedidos_revisar") or 0,
+        "pedidos_manipulados": r.get("pedidos_manipulados") or 0,
     }
