@@ -3,8 +3,8 @@
 
 {% block content %}
 
-{# Mapa de estado → colores Bootstrap #}
-{% set estado_class = {
+{# ── Mapas de estado ─────────────────────────────────── #}
+{% set estado_color = {
   'OK':                      'success',
   'Revisar':                 'warning',
   'Manipulado o incompleto': 'danger'
@@ -14,232 +14,229 @@
   'Revisar':                 'exclamation-triangle-fill',
   'Manipulado o incompleto': 'shield-exclamation'
 } %}
+{% set estado_css = {
+  'OK':                      'ok',
+  'Revisar':                 'revisar',
+  'Manipulado o incompleto': 'manipulado'
+} %}
+{% set color    = estado_color.get(r.estado, 'secondary') %}
+{% set icon     = estado_icon.get(r.estado, 'question-circle') %}
+{% set css_key  = estado_css.get(r.estado, '') %}
 
-{% set color = estado_class.get(r.estado, 'secondary') %}
-{% set icon  = estado_icon.get(r.estado, 'question-circle') %}
+{# Helper para clase de diferencia #}
+{% macro diff_class(val) %}
+  {%- set v = (val | default(0) | float) -%}
+  {%- if v | abs <= 0.01 -%}diff-ok
+  {%- elif v | abs <= 5 -%}diff-revisar
+  {%- else -%}diff-mal{%- endif -%}
+{% endmacro %}
 
-<div class="row g-4 justify-content-center">
+<div class="row g-4">
 
-  <!-- ─── Header del resultado ──────────────────────────────── -->
+  {# ─── 1. HEADER + ESTADO BANNER ─────────────────────────── #}
   <div class="col-12">
-    <div class="d-flex flex-wrap align-items-center gap-3">
+    <div class="d-flex flex-wrap align-items-start gap-3 mb-1">
+      {# Icon #}
       <div class="page-icon bg-{{ color }} text-white rounded-3 p-2">
         <i class="bi bi-{{ icon }} fs-4"></i>
       </div>
-      <div>
-        <h2 class="fw-bold mb-0">
-          Resultado — {{ r.cliente }}
+      {# Info del pedido #}
+      <div class="flex-grow-1">
+        <h2 class="fw-bold mb-0" style="font-size:1.35rem">
+          Resultado de auditoría
+          {% if r.cliente %}<span class="text-muted fw-normal"> — {{ r.cliente }}</span>{% endif %}
         </h2>
-        <p class="text-muted mb-0 small">
-          {{ r.telefono }} &nbsp;·&nbsp; {{ r.tipo_entrega }}
+        <div class="d-flex flex-wrap gap-3 mt-1" style="font-size:0.83rem; color:var(--txt-tertiary)">
+          {% if r.telefono %}<span><i class="bi bi-phone me-1"></i>{{ r.telefono }}</span>{% endif %}
+          {% if tipo_label %}<span><i class="bi bi-truck me-1"></i>{{ tipo_label }}</span>{% endif %}
+          {% if record_id %}<span><i class="bi bi-database me-1"></i>Registro #{{ record_id }}</span>{% endif %}
           {% if not readonly %}
-            &nbsp;·&nbsp;
-            <a href="{{ url_for('historial') }}" class="text-muted">Ver historial</a>
+            <a href="{{ url_for('historial') }}" style="color:var(--txt-tertiary)">Ver historial</a>
           {% endif %}
-        </p>
+        </div>
       </div>
-      <div class="ms-auto">
-        <span class="badge-estado badge bg-{{ color }} fs-6 px-3 py-2">
-          <i class="bi bi-{{ icon }} me-1"></i>{{ r.estado }}
+      {# Badge de estado grande #}
+      <span class="badge estado-badge-lg bg-{{ color }}">
+        <i class="bi bi-{{ icon }} me-1"></i>{{ r.estado }}
+      </span>
+    </div>
+  </div>
+
+  {# ─── 2. BANNER DE ESTADO (bloque grande y legible) ──────── #}
+  <div class="col-12">
+    <div class="estado-banner {{ css_key }}">
+      <div class="estado-banner-icon">
+        {% if r.estado == 'OK' %}✅
+        {% elif r.estado == 'Revisar' %}⚠️
+        {% else %}🚨{% endif %}
+      </div>
+      <div class="flex-grow-1">
+        <div class="estado-banner-title
+          {% if r.estado == 'OK' %}text-success
+          {% elif r.estado == 'Revisar' %}text-warning
+          {% else %}text-danger{% endif %}">
+          {% if r.estado == 'OK' %}Pedido correcto
+          {% elif r.estado == 'Revisar' %}Revisar este pedido
+          {% else %}Posible manipulación o pedido incompleto{% endif %}
+        </div>
+        <div class="estado-banner-msg
+          {% if r.estado == 'OK' %}text-success
+          {% elif r.estado == 'Revisar' %}text-warning
+          {% else %}text-danger{% endif %}">
+          {% if r.estado == 'OK' %}
+            El total reportado coincide con el cálculo real. Sin diferencias significativas.
+          {% elif r.estado == 'Revisar' %}
+            Diferencia de <strong>{{ r.diferencia | money }}</strong>. Puede ser redondeo o error menor. Confirma manualmente.
+          {% else %}
+            La diferencia es de <strong>{{ r.diferencia | money }}</strong>.
+            Revisa cada ítem y no liberes el pedido sin confirmar con el cliente.
+          {% endif %}
+        </div>
+      </div>
+      {# Diferencia destacada a la derecha #}
+      <div class="text-end flex-shrink-0">
+        <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--txt-tertiary)">Diferencia</div>
+        <div style="font-size:1.6rem; font-weight:900; letter-spacing:-0.025em"
+             class="{{ diff_class(r.diferencia) }}">
+          {{ r.diferencia | money }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ─── 3. CUATRO ZONAS FINANCIERAS ───────────────────────── #}
+
+  {# Zona A: Lo reportado por el cliente #}
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="zone-card zone-reported h-100">
+      <div class="zone-card-header">
+        <i class="bi bi-chat-left-text-fill"></i>
+        Reportado por cliente
+      </div>
+      <div class="zone-card-body">
+        <div class="fin-row">
+          <span class="fin-label">Subtotal</span>
+          <span class="fin-value">{{ r.subtotal_reportado | money }}</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Envío</span>
+          <span class="fin-value">{{ r.envio_reportado | money }}</span>
+        </div>
+        <div class="fin-row fin-row-main reported pt-2 mt-1"
+             style="border-top:1px solid rgba(251,191,36,0.2)">
+          <span class="fin-label">TOTAL REPORTADO</span>
+          <span class="fin-value" style="color:var(--clr-warning); font-size:1.3rem">
+            {{ r.total_reportado | money }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Zona B: Lo que calcula la app #}
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="zone-card zone-calculated h-100">
+      <div class="zone-card-header">
+        <i class="bi bi-calculator-fill"></i>
+        Calculado por la app
+      </div>
+      <div class="zone-card-body">
+        <div class="fin-row">
+          <span class="fin-label">Subtotal (precio web)</span>
+          <span class="fin-value">{{ r.subtotal_cliente | money }}</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Envío real — {{ tipo_label }}</span>
+          <span class="fin-value">{{ r.envio_real | money }}</span>
+        </div>
+        <div class="fin-row fin-row-main calculated pt-2 mt-1"
+             style="border-top:1px solid rgba(91,156,246,0.2)">
+          <span class="fin-label">TOTAL REAL</span>
+          <span class="fin-value" style="color:var(--clr-primary); font-size:1.3rem">
+            {{ r.total_real | money }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Zona C: Diferencias #}
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="zone-card zone-diff h-100">
+      <div class="zone-card-header">
+        <i class="bi bi-arrow-left-right"></i>
+        Diferencias
+      </div>
+      <div class="zone-card-body">
+        <div class="fin-row">
+          <span class="fin-label">En subtotal</span>
+          <span class="fin-value {{ diff_class(r.diferencia_subtotal) }}">
+            {{ r.diferencia_subtotal | default(0) | money }}
+          </span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">En envío</span>
+          <span class="fin-value {{ diff_class(r.diferencia_envio) }}">
+            {{ r.diferencia_envio | default(0) | money }}
+          </span>
+        </div>
+        <div class="fin-row fin-row-main pt-2 mt-1"
+             style="border-top:1px solid rgba(248,113,113,0.2)">
+          <span class="fin-label">DIFERENCIA TOTAL</span>
+          <span class="fin-value {{ diff_class(r.diferencia) }}" style="font-size:1.3rem">
+            {{ r.diferencia | money }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Zona D: Distribución de pagos #}
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="zone-card zone-payments h-100">
+      <div class="zone-card-header">
+        <i class="bi bi-wallet2"></i>
+        Distribución de pagos
+      </div>
+      <div class="zone-card-body d-flex flex-column gap-2">
+
+        <div class="pay-card">
+          <div>
+            <div class="pay-card-label text-success">Tienda</div>
+            <div class="pay-card-desc">precio de costo</div>
+          </div>
+          <div class="pay-card-amount text-success">{{ r.pago_tienda | money }}</div>
+        </div>
+
+        <div class="pay-card">
+          <div>
+            <div class="pay-card-label text-info">Repartidor</div>
+            <div class="pay-card-desc">costo de envío</div>
+          </div>
+          <div class="pay-card-amount text-info">{{ r.pago_repartidor | money }}</div>
+        </div>
+
+        <div class="pay-card">
+          <div>
+            <div class="pay-card-label text-purple">Plataforma</div>
+            <div class="pay-card-desc">margen web vs tienda</div>
+          </div>
+          <div class="pay-card-amount text-purple">{{ r.ganancia_plataforma | money }}</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ─── 4. DETALLE DE PRODUCTOS ─────────────────────────────── #}
+  <div class="col-12">
+    <div class="card border-0" style="box-shadow:var(--shadow-sm)">
+      <div class="card-header bg-transparent pt-3 pb-2 px-4 d-flex align-items-center gap-2">
+        <i class="bi bi-list-ul text-primary"></i>
+        <span class="fw-semibold" style="font-size:0.95rem">Detalle de productos</span>
+        <span class="ms-auto" style="font-size:0.75rem; color:var(--txt-tertiary)">
+          {{ r.items_detalle | length if r.items_detalle is defined else 0 }} ítems
         </span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── Alert de estado ───────────────────────────────────── -->
-  <div class="col-12">
-    {% if r.estado == 'OK' %}
-    <div class="alert alert-success border-0 d-flex align-items-center gap-3 shadow-sm">
-      <i class="bi bi-check-circle-fill fs-3"></i>
-      <div>
-        <strong>Pedido correcto.</strong>
-        El total reportado coincide con el cálculo real. Sin diferencias significativas.
-      </div>
-    </div>
-    {% elif r.estado == 'Revisar' %}
-    <div class="alert alert-warning border-0 d-flex align-items-center gap-3 shadow-sm">
-      <i class="bi bi-exclamation-triangle-fill fs-3"></i>
-      <div>
-        <strong>⚠ Revisar pedido.</strong>
-        Hay una pequeña diferencia ({{ r.diferencia | money }}).
-        Puede ser redondeo o error menor. Confirma manualmente.
-      </div>
-    </div>
-    {% else %}
-    <div class="alert alert-danger border-0 d-flex align-items-center gap-3 shadow-sm">
-      <i class="bi bi-shield-exclamation fs-3"></i>
-      <div>
-        <strong>🚨 Posible manipulación o pedido incompleto.</strong>
-        La diferencia es de {{ r.diferencia | money }}.
-        Revisa cada ítem y no liberes sin confirmar.
-      </div>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- ─── Desglose financiero ───────────────────────────────── -->
-  <div class="col-12 col-lg-7">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-        <h6 class="fw-semibold mb-0">
-          <i class="bi bi-calculator me-2 text-primary"></i>Desglose financiero
-        </h6>
-      </div>
-      <div class="card-body px-4 pb-4">
-        <table class="table table-sm mb-0">
-          <tbody>
-
-            <!-- Reportados -->
-            <tr class="table-light">
-              <td colspan="2" class="fw-semibold text-muted small pt-3 pb-1 border-0">
-                📋 LO QUE REPORTÓ EL CLIENTE
-              </td>
-            </tr>
-            <tr>
-              <td class="border-0">Subtotal reportado</td>
-              <td class="text-end border-0">{{ r.subtotal_reportado | money }}</td>
-            </tr>
-            <tr>
-              <td class="border-0">Envío reportado</td>
-              <td class="text-end border-0">{{ r.envio_reportado | money }}</td>
-            </tr>
-            <tr class="fw-semibold">
-              <td class="border-0">Total reportado</td>
-              <td class="text-end border-0 text-body">{{ r.total_reportado | money }}</td>
-            </tr>
-
-            <!-- Cálculo real -->
-            <tr class="table-light">
-              <td colspan="2" class="fw-semibold text-muted small pt-3 pb-1 border-0">
-                ✅ LO QUE CALCULA LA APP
-              </td>
-            </tr>
-            <tr>
-              <td class="border-0">Subtotal cliente (precio web)</td>
-              <td class="text-end border-0">{{ r.subtotal_cliente | money }}</td>
-            </tr>
-            <tr>
-              <td class="border-0">Envío real ({{ r.tipo_entrega }})</td>
-              <td class="text-end border-0">{{ r.envio_real | money }}</td>
-            </tr>
-            <tr class="fw-bold table-primary">
-              <td>Total real</td>
-              <td class="text-end">{{ r.total_real | money }}</td>
-            </tr>
-
-            <!-- Diferencias -->
-            <tr class="table-light">
-              <td colspan="2" class="fw-semibold text-muted small pt-3 pb-1 border-0">
-                📊 DIFERENCIAS
-              </td>
-            </tr>
-            <tr>
-              <td class="border-0">Diferencia subtotal</td>
-              <td class="text-end border-0
-                {% if r.diferencia_subtotal | abs > 5 %}text-danger fw-bold
-                {% elif r.diferencia_subtotal | abs > 0.01 %}text-warning fw-semibold
-                {% else %}text-success{% endif %}">
-                {{ r.diferencia_subtotal | money }}
-              </td>
-            </tr>
-            <tr>
-              <td class="border-0">Diferencia envío</td>
-              <td class="text-end border-0
-                {% if r.diferencia_envio | abs > 5 %}text-danger fw-bold
-                {% elif r.diferencia_envio | abs > 0.01 %}text-warning fw-semibold
-                {% else %}text-success{% endif %}">
-                {{ r.diferencia_envio | money }}
-              </td>
-            </tr>
-            <tr class="fw-bold">
-              <td class="border-0">Diferencia total</td>
-              <td class="text-end border-0
-                {% if r.diferencia | abs > 5 %}text-danger
-                {% elif r.diferencia | abs > 0.01 %}text-warning
-                {% else %}text-success{% endif %}">
-                {{ r.diferencia | money }}
-              </td>
-            </tr>
-
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── Desglose de pagos ─────────────────────────────────── -->
-  <div class="col-12 col-lg-5">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-        <h6 class="fw-semibold mb-0">
-          <i class="bi bi-wallet2 me-2 text-success"></i>Distribución de pagos
-        </h6>
-      </div>
-      <div class="card-body px-4 pb-4 d-flex flex-column gap-3">
-
-        <!-- Pago tienda -->
-        <div class="payment-card p-3 rounded-3 bg-success-soft">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-muted">Pago tienda</div>
-              <div class="small text-muted">(precio de costo real)</div>
-            </div>
-            <div class="payment-amount text-success fw-bold fs-5">
-              {{ r.pago_tienda | money }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Pago repartidor -->
-        <div class="payment-card p-3 rounded-3 bg-info-soft">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-muted">Pago repartidor</div>
-              <div class="small text-muted">(costo de envío)</div>
-            </div>
-            <div class="payment-amount text-info fw-bold fs-5">
-              {{ r.pago_repartidor | money }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Ganancia plataforma -->
-        <div class="payment-card p-3 rounded-3 bg-purple-soft">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-muted">Ganancia plataforma</div>
-              <div class="small text-muted">(margen web vs. tienda)</div>
-            </div>
-            <div class="payment-amount text-purple fw-bold fs-5">
-              {{ r.ganancia_plataforma | money }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Total real (verificación) -->
-        <div class="payment-card p-3 rounded-3 bg-primary-soft mt-auto">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-muted fw-semibold">TOTAL que cobra la app</div>
-              <div class="small text-muted">Tienda + Repartidor + Plataforma</div>
-            </div>
-            <div class="payment-amount text-primary fw-bold fs-4">
-              {{ r.total_real | money }}
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── Detalle de productos ─────────────────────────────── -->
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-        <h6 class="fw-semibold mb-0">
-          <i class="bi bi-list-ul me-2 text-primary"></i>Detalle de productos
-        </h6>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -248,60 +245,86 @@
               <tr>
                 <th class="ps-4">Producto</th>
                 <th>Variante</th>
-                <th class="text-center">Cant.</th>
-                <th class="text-end">P. Web</th>
-                <th class="text-end">P. Tienda</th>
-                <th class="text-end pe-4">Subtotal (web)</th>
+                <th class="text-center" style="width:75px">Cant.</th>
+                <th class="text-end" style="width:95px">P. Web</th>
+                <th class="text-end" style="width:95px">P. Tienda</th>
+                <th class="text-end pe-4" style="width:110px">Subtotal</th>
               </tr>
             </thead>
             <tbody>
-              {% set items = r.items_detalle if r.items_detalle is defined else r.productos_json %}
+              {% set items = r.items_detalle if r.items_detalle is defined else [] %}
               {% for item in items %}
               <tr>
-                <td class="ps-4 fw-medium">{{ item.name }}</td>
+                <td class="ps-4 fw-medium" style="color:var(--txt-primary)">
+                  {{ item.product_name or item.name or '—' }}
+                </td>
                 <td>
-                  {% if item.variant_label %}
-                    <span class="badge bg-light text-dark border">{{ item.variant_label }}</span>
+                  {% set vl = item.variant_label or '' %}
+                  {% if vl %}
+                    <span class="badge bg-secondary" style="font-size:0.78rem; font-weight:500">{{ vl }}</span>
                   {% else %}
-                    <span class="text-muted">—</span>
+                    <span style="color:var(--txt-disabled)">—</span>
                   {% endif %}
                 </td>
                 <td class="text-center">
-                  <span class="badge bg-secondary">× {{ item.quantity }}</span>
+                  <span class="fw-semibold" style="color:var(--txt-secondary)">× {{ item.quantity }}</span>
                 </td>
-                <td class="text-end">{{ item.precio_web | money }}</td>
-                <td class="text-end text-muted">{{ item.precio_tienda | money }}</td>
-                <td class="text-end pe-4 fw-semibold">{{ item.subtotal_web | money }}</td>
+                <td class="text-end" style="color:var(--clr-primary); font-weight:600">
+                  {{ item.precio_web | money }}
+                </td>
+                <td class="text-end" style="color:var(--txt-tertiary)">
+                  {{ item.precio_tienda | money }}
+                </td>
+                <td class="text-end pe-4 fw-semibold" style="color:var(--txt-primary)">
+                  {{ item.subtotal_web | money }}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-center py-4" style="color:var(--txt-tertiary)">
+                  Sin productos registrados.
+                </td>
               </tr>
               {% endfor %}
             </tbody>
-            <tfoot class="table-light">
-              <tr class="fw-bold">
-                <td colspan="5" class="ps-4 text-end">Subtotal total (precio web):</td>
-                <td class="text-end pe-4 text-primary">{{ r.subtotal_cliente | money }}</td>
+            {% if items %}
+            <tfoot>
+              <tr style="background:rgba(91,156,246,0.07); border-top:2px solid rgba(91,156,246,0.2)">
+                <td colspan="5" class="text-end pe-3 fw-semibold py-3"
+                    style="font-size:0.85rem; color:var(--txt-secondary)">
+                  Subtotal total (precio web):
+                </td>
+                <td class="text-end pe-4 py-3"
+                    style="color:var(--clr-primary); font-weight:800; font-size:1.05rem">
+                  {{ r.subtotal_cliente | money }}
+                </td>
               </tr>
             </tfoot>
+            {% endif %}
           </table>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ─── Acciones ──────────────────────────────────────────── -->
-  <div class="col-12 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-    <div class="d-flex gap-2">
-      <a href="{{ url_for('verificar') }}" class="btn btn-primary">
-        <i class="bi bi-search me-1"></i>Nuevo pedido
-      </a>
-      <a href="{{ url_for('historial') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-clock-history me-1"></i>Ver historial
-      </a>
+  {# ─── 5. ACCIONES ──────────────────────────────────────────── #}
+  <div class="col-12">
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center
+                pt-2 pb-1" style="border-top:1px solid var(--clr-border)">
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('verificar') }}" class="btn btn-primary">
+          <i class="bi bi-chat-text me-1"></i>Nuevo pedido
+        </a>
+        <a href="{{ url_for('historial') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-clock-history me-1"></i>Ver historial
+        </a>
+      </div>
+      {% if record_id %}
+      <div style="font-size:0.8rem; color:var(--txt-tertiary)">
+        <i class="bi bi-database me-1"></i>Registro #{{ record_id }} guardado
+      </div>
+      {% endif %}
     </div>
-    {% if record_id %}
-    <div class="text-muted small">
-      <i class="bi bi-database me-1"></i> Registro #{{ record_id }} guardado en historial
-    </div>
-    {% endif %}
   </div>
 
 </div>

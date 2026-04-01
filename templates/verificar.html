@@ -1,162 +1,218 @@
 {% extends "base.html" %}
-{% block title %}Analizar pedido{% endblock %}
+{% block title %}Pegar pedido{% endblock %}
 
 {% block content %}
-<div class="row g-4 justify-content-center">
+<div class="row g-4">
 
-  <!-- ─── Encabezado ─────────────────────────────────────── -->
+  {# ─── Encabezado ─────────────────────────────────────────── #}
   <div class="col-12">
     <div class="d-flex align-items-center gap-3">
       <div class="page-icon bg-primary text-white rounded-3 p-2">
         <i class="bi bi-chat-text-fill fs-4"></i>
       </div>
       <div>
-        <h2 class="fw-bold mb-0">Pegar mensaje del pedido</h2>
-        <p class="text-muted mb-0 small">
-          Copia el texto del pedido de WhatsApp o cualquier medio y pégalo aquí.
+        <h1 class="fw-bold mb-0" style="font-size:1.4rem">Pegar mensaje del pedido</h1>
+        <p style="color:var(--txt-tertiary); font-size:0.875rem; margin:0.2rem 0 0">
+          Copia el texto del pedido tal como llega por WhatsApp u otro medio — la app lo analiza automáticamente.
         </p>
       </div>
     </div>
   </div>
 
-  <!-- ─── Alerta de análisis previo ─────────────────────── -->
+  {# ─── Alerta de análisis previo en sesión ─────────────────── #}
   {% if has_analysis %}
   <div class="col-12">
-    <div class="alert alert-warning border-0 d-flex align-items-center gap-3">
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-0"
+         style="border-left:4px solid var(--clr-warning)">
       <i class="bi bi-exclamation-circle-fill fs-4"></i>
-      <div class="flex-grow-1">
+      <div class="flex-grow-1" style="font-size:0.9rem">
         <strong>Hay un análisis en progreso.</strong>
-        Puedes continuar revisándolo o pegarlo de nuevo para reiniciar.
+        Continúa revisándolo o pega un nuevo texto para reiniciar.
       </div>
       <a href="{{ url_for('revisar') }}" class="btn btn-warning btn-sm flex-shrink-0">
-        <i class="bi bi-arrow-right me-1"></i>Continuar análisis
+        <i class="bi bi-arrow-right me-1"></i>Continuar
       </a>
     </div>
   </div>
   {% endif %}
 
-  <!-- ─── Formulario de pegado ───────────────────────────── -->
-  <div class="col-12 col-xl-9">
+  {# ─── Layout principal ────────────────────────────────────── #}
+  <div class="col-12 col-xl-8">
     <form method="POST" action="{{ url_for('analizar') }}" id="analyzeForm">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
+      <div class="card border-0" style="box-shadow:var(--shadow-md)">
 
-          <!-- Textarea principal -->
-          <label class="form-label fw-semibold fs-6 mb-2" for="raw_text">
-            <i class="bi bi-clipboard-fill text-primary me-1"></i>
-            Texto del pedido
-          </label>
+        {# ─ Header de la card ─ #}
+        <div class="card-header bg-transparent px-4 py-3
+                    d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clipboard-fill" style="color:var(--clr-primary)"></i>
+            <span style="font-weight:600; font-size:0.95rem; color:var(--txt-primary)">
+              Texto del pedido
+            </span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="charCount" class="char-count">0 caracteres</span>
+            <button type="button" class="btn btn-sm" id="clearBtn"
+                    style="background:none; border:none; color:var(--txt-tertiary);
+                           font-size:1rem; padding:0.2rem 0.4rem"
+                    title="Limpiar">
+              <i class="bi bi-x-circle"></i>
+            </button>
+          </div>
+        </div>
+
+        {# ─ Textarea ─ #}
+        <div class="card-body px-4 pb-2 pt-3">
           <textarea
             id="raw_text"
             name="raw_text"
-            class="form-control textarea-pedido"
-            rows="12"
-            placeholder="Pega aquí el mensaje del pedido...
-
-Ejemplos:
-  Hola, quiero 2 cocas 600, 1 sabritas, 3 aguas, envío a domicilio, total 185
-  
-  Pedido:
-  1 kg bistec
-  2 cocas normales
-  medio kilo chorizo
-  Total 320, domicilio"
+            class="textarea-pedido w-100 border rounded"
+            rows="13"
             autofocus
-            spellcheck="false">{{ prev_text if has_analysis else '' }}</textarea>
+            spellcheck="false"
+            placeholder="Pega aquí el pedido...
 
-          <!-- Contador de caracteres -->
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <small class="text-muted" id="charCount">0 caracteres</small>
-            <small class="text-muted">
-              <i class="bi bi-info-circle me-1"></i>
-              El parser detecta productos, cantidades, tipo de entrega y total automáticamente.
-            </small>
-          </div>
-
+Ejemplos de texto que el parser entiende:
+  Hola quiero 2 cocas 600, 1 sabritas, 3 aguas, domicilio, total 185
+  ─────────────────────────────────────────────
+  Pedido:
+  1 kg bistec de res
+  2 coca cola normal
+  medio kilo chorizo
+  Total que le dije: 320  →  domicilio">{{ prev_text if has_analysis else '' }}</textarea>
         </div>
 
-        <!-- Ejemplos rápidos de pegado -->
-        <div class="card-footer bg-transparent border-0 px-4 pb-4">
+        {# ─ Ejemplos rápidos ─ #}
+        <div class="px-4 pb-4 pt-2">
           <div class="d-flex flex-wrap gap-2 align-items-center">
-
-            <span class="text-muted small me-1">Probar con:</span>
-
-            <button type="button" class="btn btn-sm btn-outline-secondary example-btn"
-              data-text="Hola buenas! quiero 2 cocas 600 normal, 3 aguas ciel, 1 sabritas adobadas, medio kilo de chorizo, envío a domicilio. Total 185 pesos">
-              Ejemplo WhatsApp
+            <span style="font-size:0.78rem; color:var(--txt-tertiary); font-weight:500">
+              Probar ejemplo:
+            </span>
+            <button type="button" class="btn example-btn" data-text="Hola buenas! quiero 2 cocas 600 normal, 3 aguas ciel, 1 sabritas adobadas, medio kilo de chorizo, envío a domicilio. Total 185 pesos">
+              WhatsApp informal
             </button>
-
-            <button type="button" class="btn btn-sm btn-outline-secondary example-btn"
+            <button type="button" class="btn example-btn"
               data-text="Pedido:
 1 kg bistec de res
-2 coca cola 600
-1 electrolit toronja
+2 coca cola normal
+medio kilo chorizo
 Total que le dije: 320
 Domicilio">
-              Ejemplo lista
+              Lista de productos
             </button>
-
-            <button type="button" class="btn btn-sm btn-outline-secondary example-btn"
+            <button type="button" class="btn example-btn"
               data-text="3x sabritas, 2 doritos nacho, 1 gansito, 1 boing mango, recoger en tienda, total 110">
-              Ejemplo snacks
+              Snacks (recoger)
             </button>
-
-            <button type="button" class="btn btn-sm btn-outline-danger ms-auto"
-              id="clearBtn" title="Limpiar textarea">
-              <i class="bi bi-x-lg"></i>
-            </button>
-
           </div>
         </div>
 
-      </div>
+      </div>{# /card #}
 
-      <!-- Botón principal -->
+      {# ─ Botón principal ─ #}
       <div class="d-grid mt-3">
-        <button type="submit" class="btn btn-primary btn-lg py-3" id="analyzeBtn">
-          <i class="bi bi-cpu me-2"></i>
-          <span>Analizar pedido automáticamente</span>
+        <button type="submit" class="btn btn-primary py-3" id="analyzeBtn"
+                style="font-size:1rem; font-weight:700; letter-spacing:0.01em" disabled>
+          <i class="bi bi-cpu me-2"></i>Analizar pedido automáticamente
         </button>
       </div>
 
     </form>
-  </div>
+  </div>{# /col-xl-8 #}
 
-  <!-- ─── Tips ─ ─────────────────────────────────────────── -->
-  <div class="col-12 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-        <h6 class="fw-semibold mb-0"><i class="bi bi-lightbulb text-warning me-1"></i>Tips del parser</h6>
+  {# ─── Panel de ayuda del parser ───────────────────────────── #}
+  <div class="col-12 col-xl-4">
+    <div class="tips-panel p-4 h-100"
+         style="background:var(--clr-surface); border:1px solid var(--clr-border); border-radius:var(--radius-md)">
+
+      <div class="tips-panel-title mb-3">
+        <i class="bi bi-lightning-fill me-1"></i>Lo que detecta automáticamente
       </div>
-      <div class="card-body px-4 pb-4 pt-3">
-        <ul class="list-unstyled tips-list">
-          <li><i class="bi bi-check-circle text-success me-2"></i>Reconoce <strong>cantidades</strong>: "2", "3x", "dos", "medio kilo"</li>
-          <li><i class="bi bi-check-circle text-success me-2"></i>Detecta <strong>tipo de entrega</strong>: "domicilio", "recoger", "fuera"</li>
-          <li><i class="bi bi-check-circle text-success me-2"></i>Extrae el <strong>total reportado</strong>: "total 185", "son 240"</li>
-          <li><i class="bi bi-check-circle text-success me-2"></i>Soporta <strong>alias</strong>: "coca", "sabritas", "agua", "bistec"</li>
-          <li><i class="bi bi-check-circle text-success me-2"></i>Detecta <strong>variantes</strong>: "½ kilo", "1 kg", "sin azúcar", "mango"</li>
-          <li><i class="bi bi-check-circle text-success me-2"></i>Ignora mayúsculas y acentos</li>
-          <li><i class="bi bi-info-circle text-info me-2"></i>Si algo no se reconoce, lo marcará para corrección manual</li>
-        </ul>
+
+      <ul class="tips-list">
+        <li>
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span><strong>Cantidades:</strong> "2", "3x", "dos", "tres", "medio kilo"</span>
+        </li>
+        <li>
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span><strong>Tipo de entrega:</strong> "domicilio", "recoger", "fuera"</span>
+        </li>
+        <li>
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span><strong>Total reportado:</strong> "total 185", "son 240", "cobrar 310"</span>
+        </li>
+        <li>
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span><strong>Aliases de products:</strong> "coca", "bistec", "agua", "sabritas"</span>
+        </li>
+        <li>
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span><strong>Variantes:</strong> "½ kilo", "1 kg", "sin azúcar", "adobadas", "mango"</span>
+        </li>
+        <li>
+          <i class="bi bi-check-circle-fill text-success"></i>
+          <span><strong>Teléfono:</strong> número de 10 dígitos</span>
+        </li>
+        <li>
+          <i class="bi bi-info-circle-fill text-info"></i>
+          <span>Ignora mayúsculas, acentos y palabras irrelevantes</span>
+        </li>
+        <li>
+          <i class="bi bi-exclamation-circle-fill text-warning"></i>
+          <span>Lo que no reconozca quedará marcado para <strong>corrección manual</strong></span>
+        </li>
+      </ul>
+
+      <div class="mt-4 pt-3" style="border-top:1px solid var(--clr-border)">
+        <div class="tips-panel-title mb-2">
+          <i class="bi bi-arrow-right-circle me-1"></i>Flujo de trabajo
+        </div>
+        <div class="d-flex flex-column gap-2" style="font-size:0.82rem; color:var(--txt-secondary)">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;padding:0;font-size:0.7rem;flex-shrink:0">1</span>
+            Pegar texto del pedido
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;padding:0;font-size:0.7rem;flex-shrink:0">2</span>
+            Analizar automáticamente
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;padding:0;font-size:0.7rem;flex-shrink:0">3</span>
+            Revisar y corregir si es necesario
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;padding:0;font-size:0.7rem;flex-shrink:0">4</span>
+            Confirmar y guardar auditoría
+          </div>
+        </div>
       </div>
+
     </div>
-  </div>
+  </div>{# /col-xl-4 #}
 
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  const textarea  = document.getElementById("raw_text");
-  const charCount = document.getElementById("charCount");
-  const analyzeBtn = document.getElementById("analyzeBtn");
-  const clearBtn  = document.getElementById("clearBtn");
+  const textarea    = document.getElementById("raw_text");
+  const charCount   = document.getElementById("charCount");
+  const analyzeBtn  = document.getElementById("analyzeBtn");
+  const clearBtn    = document.getElementById("clearBtn");
 
   function updateCount() {
-    const n = textarea.value.length;
-    charCount.textContent = n + " caracteres";
+    const n = textarea.value.trim().length;
+    charCount.textContent = n > 0 ? `${n} caracteres` : "0 caracteres";
     analyzeBtn.disabled = n < 5;
+    // leve feedback visual
+    if (n > 0) {
+      charCount.style.color = "var(--clr-primary)";
+    } else {
+      charCount.style.color = "var(--txt-disabled)";
+    }
   }
+
   textarea.addEventListener("input", updateCount);
   updateCount();
 
@@ -166,6 +222,9 @@ Domicilio">
       textarea.value = btn.dataset.text;
       updateCount();
       textarea.focus();
+      // Scroll al inicio
+      textarea.setSelectionRange(0, 0);
+      textarea.scrollTop = 0;
     });
   });
 
@@ -176,11 +235,14 @@ Domicilio">
     textarea.focus();
   });
 
-  // Loading state
+  // Estado de carga al enviar
   document.getElementById("analyzeForm").addEventListener("submit", () => {
     analyzeBtn.innerHTML =
-      '<span class="spinner-border spinner-border-sm me-2"></span>Analizando...';
+      '<span class="spinner-border spinner-border-sm me-2"></span>Analizando pedido...';
     analyzeBtn.disabled = true;
   });
+
+  // Focus automático
+  textarea.focus();
 </script>
 {% endblock %}

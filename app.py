@@ -258,7 +258,7 @@ def historial():
 
 
 @app.route("/ver/<int:record_id>")
-def ver_auditoria(record_id: int):
+def ver_verificacion(record_id: int):
     registro = get_audit(record_id)
     if not registro:
         flash(f"Registro #{record_id} no encontrado.", "danger")
@@ -271,6 +271,15 @@ def ver_auditoria(record_id: int):
 
     # Normalizar items_json para el template
     registro["items_detalle"] = registro.get("items_json", [])
+
+    # Re-calcular campos derivados que no se guardan en la DB
+    s_rep = float(registro.get("subtotal_reportado") or 0.0)
+    s_cli = float(registro.get("subtotal_cliente") or 0.0)
+    registro["diferencia_subtotal"] = s_rep - s_cli
+
+    e_rep = float(registro.get("envio_reportado") or 0.0)
+    e_real = float(registro.get("envio_real") or 0.0)
+    registro["diferencia_envio"] = e_rep - e_real
 
     return render_template("resultado.html", r=registro,
                            record_id=record_id, tipo_label=tipo_label, readonly=True)
